@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="status-bar">
+    <span id="status-text">Query Client NRIC to begin</span>
+</div>
+<h1 class="font-weight-bold">NPO-POS 1.0</h1>
+
+<div class="main-container">
+    <div class="left-container">
+        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Input Client NRIC</h2>
+        <form id="nric-form" class="form-group">
+            <input type="text" id="nric" name="nric" class="form-control" placeholder="NRIC">
+            <button type="button" class="btn btn-primary mt-2" onclick="nricQuery()">Query</button>
+        </form>
+        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Items Check-out</h2>
+        <form id="items-form">
+            <div id="items-container" class="container">
+                <div class="item-row row">
+                    <select class="checkoutitem form-control col">
+                        <option disabled selected value="">Item</option>
+                        {% for item in items %}
+                            <option>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                    <input class="quantity form-control col" autocomplete="off" autofocus name="quantity" placeholder="Quantity" type="number" min="0" max="2" step="1">
+                    <div class="price col">$0.00</div>
+                    <button type="button" class="btn btn-secondary col-auto" onclick="addItemRow()">Add Additional Item</button>
+                    <button type="button" class="btn btn-danger col-auto remove-item" onclick="alert('Unable to remove row')">Remove</button>
+                </div>
+            </div>        
+        </form>
+        <div id="total-counter" class="mt-3">Total: $0.00</div>
+        <button id="checkout-button" type="button" class="btn btn-success mt-3" onclick="checkOut()" disabled>Submit Transaction</button>
+    </div>
+    <div class="right-container">
+        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Transaction Log</h2>
+        <div id="transaction-log" class="transaction-log mt-4"></div>
+    </div>
+</div>
+{% endblock %}
