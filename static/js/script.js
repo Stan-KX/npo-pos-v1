@@ -1,68 +1,234 @@
-let itemPrices = {};
+// Variables
+const baseHardLimit = 36;
+const baseSoftLimit = 35;
+let hardLimit = baseHardLimit;
+let softLimit = baseSoftLimit;
+let itemLimit = 2;
 
 
+// Function to reset limits to base values
+function resetLimits() {
+    hardLimit = baseHardLimit;
+    softLimit = baseSoftLimit;
+}
+
+// 1) To perform AJAX request upon NRIC query button press
+function nricQuery(event) {
+    if (event) {
+        event.preventDefault();
+    }
+    resetLimits();
+    $.post({
+        url: '/query',
+        data: $('#nric-form').serialize(),
+        success: function(data) {  
+            if (data.message.includes('new')) {
+                updateStatusText(`${data.message}`, 'error');    
+                console.log(data.age);                              
+            } else {
+                if (data.age >= 60) {
+                    hardLimit += 15;
+                    softLimit += 15;
+                }
+                document.getElementById("checkout-button").disabled = false; // Enables checkout button if NRIC is valid
+                document.querySelector(".product-container").style.border = '5px solid #4CAF50';
+                document.querySelector(".form-container").style.border = 'none';
+                document.querySelector("#client-name").innerText = `Client: ${data.message}\n Available Credit: ${softLimit} tokens`;
+                updateStatusText(`Client found: ${data.message}`, 'success');
+            }
+        }
+    });
+    return false; // Ensure the function returns false to prevent default form submission
+}
+
+
+
+// 2) Function to update status text
+function updateStatusText(message, className) {
+    const statusTextElement = document.querySelector("#status-text");
+    if (statusTextElement) {
+        statusTextElement.className = `status-text ${className}`;
+        statusTextElement.innerText = message;
+    }
+}
+
+
+// 2) Enables quantity selectors, validates 0-2, calls updateTotal() 
+document.addEventListener('DOMContentLoaded', () => {
+    const productCards = document.querySelectorAll('.product-card');
+
+    productCards.forEach(card => {
+        const quantityElement = card.querySelector('.product-quantity');
+        const decreaseButton = card.querySelector('.quantity-decrease');
+        const increaseButton = card.querySelector('.quantity-increase');
+        const price = parseFloat(card.querySelector('.product-price').textContent.replace('$', ''));
+
+        let quantity = parseInt(quantityElement.textContent, 10);
+
+        decreaseButton.addEventListener('click', () => {
+            if (quantity > 0) {
+                quantity--;
+                quantityElement.textContent = quantity;
+                updateTotal();
+                updateCart();
+                cardBorder();
+            }
+        });
+
+        increaseButton.addEventListener('click', () => {
+            if (quantity < itemLimit) {
+                quantity++;
+                quantityElement.textContent = quantity;
+                updateTotal();
+                updateCart();
+                cardBorder();
+            }
+        });
+
+        // Add event listener to the query button to reset quantities
+        document.getElementById('query-btn').addEventListener('click', () => {
+            quantity = 0;
+            quantityElement.textContent = quantity;
+        });
+    });
+});
+
+
+function cardBorder() {
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        const quantityElement = card.querySelector('.product-quantity');
+        const quantity = parseInt(quantityElement.textContent, 10);
+        
+        if (quantity !== 0) {
+            card.style.border = '2px solid green';
+        } else {
+            card.style.border = ''; // Reset border if quantity is 0
+        }
+    });
+}
+
+
+// 3) Updates the total counter based on quantity*price, counter color to red if > soft limit
+function updateTotal() {
+    let total = 0;
+    const productCards = document.querySelectorAll('.product-card');
+
+    productCards.forEach(card => {
+        const quantity = parseInt(card.querySelector('.product-quantity').textContent, 10);
+        const price = parseFloat(card.querySelector('.product-price').textContent.replace(' tokens', ''));
+        total += quantity * price;
+    });
+
+    const totalCounter = document.querySelector('#total-counter');
+    totalCounter.innerText = `Total: ${total.toFixed(0)} tokens`;
+
+    if (total > softLimit) {
+        totalCounter.style.backgroundColor = 'red';
+    } else {
+        totalCounter.style.backgroundColor = ''; // Reset to default if total is not greater than spending limit
+    }
+}
+
+// 4) Updates the shopping cart based on what was selected
+function updateCart() {
+    let transactionData = []; // Initialize transaction data array
+
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        const quantity = parseInt(card.querySelector('.product-quantity').textContent, 10);
+        const price = parseFloat(card.querySelector('.product-price').textContent.replace(' tokens', ''));
+        const item = card.querySelector('.product-name').textContent;
+        const total = quantity * price;
+
+        if (quantity > 0) {
+            transactionData.push({
+                "Item Name": item,
+                "Item Quantity": quantity,
+                "Item Price": price,
+                "Total": total
+            });
+        }
+    });
+    const transactionLog = document.getElementById('transaction-log');
+    transactionLog.innerHTML = ''; // Clear previous log
+
+    transactionData.forEach(entry => {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'transaction-entry';
+
+        const itemName = document.createElement('span');
+        itemName.className = 'item-name';
+        itemName.textContent = `${entry["Item Name"]}`;
+
+        const itemPrice = document.createElement('span');
+        itemPrice.className = 'item-price';
+        itemPrice.textContent = `${entry["Item Price"]} token/unit`;
+
+        const itemQuantity = document.createElement('span');
+        itemQuantity.className = 'item-quantity';
+        itemQuantity.textContent = `Qty: ${entry["Item Quantity"]}`;
+        
+        const itemTotal=document.createElement('span');
+        itemTotal.className = 'item-total'
+        itemTotal.textContent = `Total: ${entry["Total"]} tokens`;
+
+        logEntry.appendChild(itemName);
+        logEntry.appendChild(itemPrice);
+        logEntry.appendChild(itemQuantity);
+        logEntry.appendChild(itemTotal);
+
+        transactionLog.appendChild(logEntry);
+    });
+} 
+
+function clearCart() {
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        const quantityElement = card.querySelector('.product-quantity');
+        quantityElement.textContent = '0'; // Set the quantity to 0
+    });
+    updateCart();
+    updateTotal();
+    document.querySelector("#client-name").innerText = ``;
+}
+
+// Processes the transaction submission. Sends transaction details to server.
 function checkOut() {
-    const totalprice = parseFloat(document.querySelector('#total-counter').getAttribute('data-total'));
-    console.log(totalprice)
-    if (totalprice > 32) {
-        alert('Transaction blocked: Total price exceeds the limit of $32. Please remove some items.');
+    const total = parseFloat(document.querySelector('#total-counter').textContent.replace('Total: ', '').replace(' tokens', ''));
+    console.log(total)
+    if (total > hardLimit) {
+        alert(`Transaction blocked: Total price exceeds the limit of $${softLimit}. Please remove some items.`);
     } else {
 
-    const userConfirmed = confirm("Confirm Transaction? Transaction cannot be reversed");
+    const userConfirmed = confirm(`Confirm Transaction? Client may purchase an additional ${softLimit-total} tokens worth of items.`);
     
     if (userConfirmed) {
-        const checkoutitems = document.querySelectorAll('.checkoutitem');
-        const quantities = document.querySelectorAll('.quantity');
-        const prices = document.querySelectorAll('.price');
-        const totalprice = parseFloat(document.querySelector('#total-counter').getAttribute('data-total'))
+        const productCards = document.querySelectorAll('.product-card');
+        let checkoutList = [];
 
-        const data = Array.from(checkoutitems).map((item, index) => ({
-            ItemName: item.value,
-            ItemQuantity: quantities[index].value,
-            TotalPrice: totalprice
-        }));
+        // transaction details
+        productCards.forEach(card => {
+            const quantity = parseInt(card.querySelector('.product-quantity').textContent, 10);
+            const price = parseFloat(card.querySelector('.product-price').textContent.replace(' tokens', ''));
+            const item = card.querySelector('.product-name').textContent
+            const itemtotal = quantity * price;
+
+            if(quantity >0) {
+                checkoutList.push({
+                    ItemName: item, 
+                    ItemQuantity:quantity, 
+                    TotalPrice: itemtotal,
+                    TotalSpent: total})
+            }
+        });
+
+        const data = checkoutList
+        const clientname = document.querySelector("#client-name").innerText
 
         console.log("Data to be sent:", data); // Debugging log
 
-        // Reflect transaction details in the transactionlog div
-
-        const transactiondata = Array.from(checkoutitems).map((item, index) => ({
-            "Item Name": item.value,
-            "Item Quantity": quantities[index].value,
-            "Item Price": parseFloat(prices[index].textContent.replace('$', ''))
-        }));
-        const transactionLog = document.getElementById('transaction-log');
-        transactionLog.innerHTML = ''; // Clear previous log
-
-        transactiondata.forEach(entry => {
-            const logEntry = document.createElement('div');
-            logEntry.className = 'transaction-entry';
-    
-            const itemName = document.createElement('span');
-            itemName.className = 'item-name';
-            itemName.textContent = `Item: ${entry["Item Name"]}`;
-
-            const itemPrice = document.createElement('span');
-            itemPrice.className = 'item-price';
-            itemPrice.textContent = `$${entry["Item Price"]}`;
-    
-            const itemQuantity = document.createElement('span');
-            itemQuantity.className = 'item-quantity';
-            itemQuantity.textContent = `Quantity: ${entry["Item Quantity"]}`;;
-    
-            logEntry.appendChild(itemName);
-            logEntry.appendChild(itemPrice);
-            logEntry.appendChild(itemQuantity);
-    
-            transactionLog.appendChild(logEntry);
-        });
-    
-        // Add the grand total at the bottom
-        const totalLogEntry = document.createElement('div');
-        totalLogEntry.className = 'transaction-entry total';
-        totalLogEntry.textContent = `Total Price: $${totalprice.toFixed(2)}`;
-        transactionLog.appendChild(totalLogEntry);
-
+        // Sends the data (checkoutList) to server
         fetch('/check-out', {
             method: 'POST',
             headers: {
@@ -73,150 +239,37 @@ function checkOut() {
         .then(response => response.json())
         .then(data => {
             console.log(data.message);
+            document.getElementById("checkout-button").disabled = true;
+            document.querySelector(".product-container").style.border = '';
+            document.querySelector(".form-container").style.border = '';
+            document.getElementById('nric-input').value = '';
+            alert(`Transaction successfully processed. Input another NRIC to conduct new transaction.`);
+            document.getElementById('nric-input').focus();
+            clearCart();
+            cardBorder();
+            updateStatusText(`Please input client NRIC.`, 'error');
         })
         .catch(error => {
             console.error('Error processing check-out:', error);
         });
-
 
     } else {
         console.log("Transaction was cancelled by the user.");
     }
 }}    
 
-
-
-// To perform AJAX request upon NRIC query button press
-function nricQuery() {
-    $.post({
-        url:'/status-text',
-        data: $('#nric-form').serialize(),
-        success: function(data) {
-            if (data.message) {
-                document.getElementById('status-text').innerText=data.message
-            }
-            document.getElementsByClassName('status-bar')[0].style.backgroundColor = data.color;
-
-            if (data.message.includes('new')) {
-                if(confirm(data.message)){
-                    window.location.reload();
-                };
-            } else document.getElementById("checkout-button").disabled = false   // disables checkout button if nric invalid/none
-        }
-    });
-}
-
-function validateQuantity(inputElement) {
-    let value = parseInt(inputElement.value, 10);
-    if (isNaN(value) || value < 0) {
-        inputElement.value = ''
-        inputElement.value = 0;
-    } else if (value > 2) {
-        inputElement.value = ''
-        inputElement.value = 2;
-    }
-}
-
-function addItemRow() {
-    const container = document.getElementById('items-container');
-    const row = document.createElement('div');
-    row.className = 'item-row';
-
-    row.innerHTML = `
-        <select class="checkoutitem form-control col">
-            <option disabled selected value="">Item</option>
-            ${items.map(item => `<option>${item}</option>`).join('')}
-        </select>
-        <input class="quantity form-control col" autocomplete="off" autofocus name="quantity" placeholder="Quantity" type="number" min="0" max="2" step="1">
-        <div class="price col">$0.00</div>
-        <button type="button" class="btn btn-secondary col-auto" onclick="addItemRow()">Add Additional Item</button>
-        <button type="button" class="btn btn-danger col-auto remove-item" onclick="this.parentElement.remove()">Remove</button>
-    `;
-
-    container.appendChild(row);
-
-    const newSelect = row.querySelector('.checkoutitem');
-    const newInput = row.querySelector('.quantity');
-    const removeButton = row.querySelector('.remove-item');
-
-    newInput.addEventListener('input', function() { validateQuantity(newInput); });
-    newInput.addEventListener('change', function() { validateQuantity(newInput); });
-    newSelect.addEventListener('change', updatePrice);
-    newInput.addEventListener('input', updatePrice);
-    newInput.addEventListener('change', updatePrice);
-    removeButton.addEventListener('click', totalPrice);
-}
-
-document.addEventListener('DOMContentLoaded', async function () {
-    const itemsContainer = document.getElementById('items-container');
-
-    // Attach event listeners to the initial row
-    const initialRow = itemsContainer.querySelector('.item-row');
-    if (initialRow) {
-        const initialSelect = initialRow.querySelector('.checkoutitem');
-        const initialInput = initialRow.querySelector('.quantity');
-
-    initialInput.addEventListener('input', function() { validateQuantity(initialInput); });
-    initialInput.addEventListener('change', function() { validateQuantity(initialInput); });
-    initialSelect.addEventListener('change', updatePrice);
-    initialInput.addEventListener('input', updatePrice);
-    initialInput.addEventListener('change', updatePrice);
-    }
-
-    itemsContainer.addEventListener('input', function(event) {
-        if (event.target.classList.contains('quantity')) {
-            validateQuantity(event.target)
-            updatePrice;
-        }
-    });
-
-    itemsContainer.addEventListener('change', function(event) {
-        if (event.target.classList.contains('quantity')) {
-            validateQuantity(event.target);
-        }
-    });
-
-    await fetchPrice()
-});
-
-async function fetchPrice() {
-    try {
-        const response = await fetch('/get-price');
-        const data = await response.json();
-        itemPrices = data;
-        console.log('Item prices fetched:', itemPrices); // Debugging log
-    } catch (error) {
-        console.error('Error fetching item prices:', error);
-    }
-}
-
-function updatePrice() {
-    const itemRow = this.closest('.item-row');
-    const selectedItem = itemRow.querySelector('.checkoutitem').value;
-    const quantity = parseInt(itemRow.querySelector('.quantity').value, 10);
-    const priceDiv = itemRow.querySelector('.price');
-
-
-    if (selectedItem && quantity) {
-        const price = itemPrices[selectedItem] * quantity;
-        priceDiv.textContent = `$${price.toFixed(2)}`;
-        console.log(`Price: $${price.toFixed(2)}`)
-    } else {
-        priceDiv.textContent = '';
-    }
-
-    totalPrice();
-}
-
-function totalPrice() {
-    const allPrice = document.querySelectorAll('.price');
-    const totalCounter = document.querySelector('#total-counter');
-    let total = 0;
-    allPrice.forEach(div =>{
-        const price = parseFloat(div.textContent.replace('$','')) || 0;
-        total+=price;
+function downloadTransactions() {
+    fetch('/download_csv')
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'transactions.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
     })
-    totalCounter.textContent=`Total: $${total.toFixed(2)}`;
-    totalCounter.setAttribute('data-total', total.toFixed(2))
+    .catch(error => console.error('Error downloading the CSV:', error));
 }
-
