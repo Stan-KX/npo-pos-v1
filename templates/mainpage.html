@@ -1,41 +1,77 @@
 {% extends "layout.html" %}
 
 {% block body %}
-<div class="status-bar">
-    <span id="status-text">Query Client NRIC to begin</span>
+
+<!-- <div class="container-fluid"> -->
+<div class="sidebar">
+    <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#sidebarContent" aria-expanded="false" aria-controls="sidebarContent">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="collapse" id="sidebarContent">
+        <img src="/static/images/LHMSCJ_Logo_Transparent.png" alt="LHMSCJ Logo" class="logo">
+        <h2>LHJ-POS 2.0</h2>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Log-out</a></li>
+            <li><a href="{{ url_for('admin') }}">Admin</a></li>
+        </ul>
+    </div>
 </div>
-<h1 class="font-weight-bold">NPO-POS 1.0</h1>
+<!-- </div> -->
+
+<!-- <div class="d-flex">
+    <nav id="sidebar" class="bg-light border-end">
+        <div class="sidebar-header p-3">
+            <h3>Sidebar</h3>
+            <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarContent" aria-expanded="false" aria-controls="sidebarContent">
+                Toggle Sidebar
+            </button>
+        </div>
+        <div class="collapse show" id="sidebarContent">
+            <ul class="list-unstyled p-3">
+                <li><a href="#" class="nav-link">Home</a></li>
+                <li><a href="#" class="nav-link">About</a></li>
+                <li><a href="#" class="nav-link">Services</a></li>
+                <li><a href="#" class="nav-link">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+< -->
 
 <div class="main-container">
     <div class="left-container">
-        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Input Client NRIC</h2>
-        <form id="nric-form" class="form-group">
-            <input type="text" id="nric" name="nric" class="form-control" placeholder="NRIC">
-            <button type="button" class="btn btn-primary mt-2" onclick="nricQuery()">Query</button>
-        </form>
-        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Items Check-out</h2>
-        <form id="items-form">
-            <div id="items-container" class="container">
-                <div class="item-row row">
-                    <select class="checkoutitem form-control col">
-                        <option disabled selected value="">Item</option>
-                        {% for item in items %}
-                            <option>{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                    <input class="quantity form-control col" autocomplete="off" autofocus name="quantity" placeholder="Quantity" type="number" min="0" max="2" step="1">
-                    <div class="price col">$0.00</div>
-                    <button type="button" class="btn btn-secondary col-auto" onclick="addItemRow()">Add Additional Item</button>
-                    <button type="button" class="btn btn-danger col-auto remove-item" onclick="alert('Unable to remove row')">Remove</button>
+        <div class = "form-container">
+            <h2 id = "nric-header" class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4 custom-subheading">Input Client NRIC</h2>
+            <form id="nric-form">
+                <div class="form-group">
+                    <input type="text" id="nric-input" name="nric" class="form-control" placeholder="NRIC">
+                    <button type="submit" class="btn btn-primary mt-2" id="query-btn" onclick="nricQuery(event)">Query</button>
                 </div>
-            </div>        
-        </form>
-        <div id="total-counter" class="mt-3">Total: $0.00</div>
-        <button id="checkout-button" type="button" class="btn btn-success mt-3" onclick="checkOut()" disabled>Submit Transaction</button>
+                <div id="status-text"></div>
+            </form>
+        </div>
+        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Items</h2>
+        <div class="product-container">
+            {% for item in items %}
+            <div class="product-card card shadow-sm p-3 mb-5 bg-white rounded">
+                <img src="{{ url_for('static', filename='images/' ~ item.image) }}" alt="{{ item.name }}" class="product-image">
+                <h3 class="product-name">{{ item.name }}</h3>
+                <p class="bg-light p-2 rounded product-price">{{ item.price }} tokens</p>
+                <div class="quantity-controls">
+                    <button class="btn btn-outline-secondary quantity-decrease">-</button>
+                    <span class="mx-2 product-quantity">0</span>
+                    <button class="btn btn-outline-secondary quantity-increase">+</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
     </div>
     <div class="right-container">
-        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Transaction Log</h2>
+        <h2 class="text-center text-uppercase font-weight-bold border-bottom pb-3 mb-4 shadow-lg p-4 mb-4">Shopping Cart</h2>
+        <div id="client-name" class="mt-3">Client Name</div>
         <div id="transaction-log" class="transaction-log mt-4"></div>
+        <div id="total-counter" class="mt-3">Total: </div>
+        <button id="checkout-button" type="button" class="btn btn-success mt-3" onclick="checkOut()" disabled>Submit Transaction</button>
     </div>
 </div>
 {% endblock %}
